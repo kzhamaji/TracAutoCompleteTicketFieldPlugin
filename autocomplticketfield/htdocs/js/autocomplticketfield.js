@@ -27,7 +27,8 @@
         name = $(dom).attr('id') || $(dom).attr('name')
         return name.replace('field-', '')
                    .replace(/^\d+_/, '')
-                   .replace('batchmod_value_', '');
+                   .replace('batchmod_value_', '')
+                   .replace('_secondary', '');
     }
 
     function enable_autocomplete ( options ) {
