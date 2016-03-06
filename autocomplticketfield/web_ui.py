@@ -16,6 +16,12 @@ from trac.web.chrome import ITemplateProvider, add_script, add_stylesheet
 from trac.ticket import TicketSystem
 from trac.cache import cached
 
+try:
+    from customdbtable.api import CustomDBTableSystem
+    has_CustomDBTableSystem = True
+except ImportError:
+    has_CustomDBTableSystem = False
+
 
 class TicketAutoCompleteTicketFieldPlugin (Component):
 
@@ -37,14 +43,56 @@ class TicketAutoCompleteTicketFieldPlugin (Component):
             name = field['name']
             if field['type'] != 'text' or field.get('format', '') != 'list':
                 continue
-            options = sect.get(name + '.options')
+
+            options = None
+
+            options_from = sect.get(name + '.options_from')
+            if options_from:
+                if options_from.startswith('customdb:') and has_CustomDBTableSystem:
+                    elts = options_from.split(':', 1)[-1].split('/')
+                    if elts[0]:
+                        env, table, col = self.env, elts[0], elts[1]
+                    else:
+                        env = self._resolve_env(elts[1])
+                        table, col = elts[2], elts[3]
+                    self.log.error(elts)
+                    options = CustomDBTableSystem(env).sorted_column(table, col)
+                    self.log.error(options)
+
+            if not options:
+                options = sect.get(name + '.options')
+                options = sorted([v.strip() for v in options.split('|')])
+
             if options:
                 fields[name] = {
-                    'options': sorted([v.strip() for v in options.split('|')]),
+                    'options': options,
                     'multiselect': sect.getbool(name + '.multiselect'),
                 }
 
         return fields
+
+
+    @cached
+    def _intertracs (self):
+        # FIXME this assumes trac envs are arranged under the same directory
+        intertracs = {}
+        aliases = {}
+        for key, value in self.env.config['intertrac'].options():
+            if key.endswith('.url'):
+                intertracs[key.split('.')[0]] = os.path.basename(value)
+            else:
+                aliases[key] = value
+        for alias, to in aliases.items():
+            if to in intertracs:
+                intertracs[alias] = intertracs[to]
+        return intertracs
+
+    def _resolve_env (self, name):
+        from trac.env import open_environment
+        import os.path
+        dir_ = self._intertracs[name]
+        path = os.path.join(os.path.dirname(self.env.path), dir_)
+        return open_environment(path, True)
 
 
     # ITemplateProvider methods
