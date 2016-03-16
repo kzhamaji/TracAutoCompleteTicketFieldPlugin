@@ -55,9 +55,7 @@ class TicketAutoCompleteTicketFieldPlugin (Component):
                     else:
                         env = self._resolve_env(elts[1])
                         table, col = elts[2], elts[3]
-                    self.log.error(elts)
                     options = CustomDBTableSystem(env).sorted_column(table, col)
-                    self.log.error(options)
 
             if not options:
                 options = sect.get(name + '.options')
