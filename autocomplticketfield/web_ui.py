@@ -14,7 +14,6 @@ from trac.web.api import IRequestFilter, ITemplateStreamFilter, IRequestHandler
 from trac.web.chrome import ITemplateProvider, add_script, add_stylesheet
 
 from trac.ticket import TicketSystem
-from trac.cache import cached
 
 try:
     from customdbtable.api import CustomDBTableSystem
@@ -32,8 +31,7 @@ class TicketAutoCompleteTicketFieldPlugin (Component):
 
     implements(ITemplateProvider, IRequestFilter, ITemplateStreamFilter, IRequestHandler)
 
-    @cached
-    def fields (self):
+    def _get_fields (self):
         ts = TicketSystem(self.env)
         sect = self.env.config['ticket-custom']
 
@@ -69,9 +67,14 @@ class TicketAutoCompleteTicketFieldPlugin (Component):
 
         return fields
 
+    @property
+    def fields (self):
+        if not hasattr(self, "_fields"):
+            self._fields = self._get_fields()
+        return self._fields
+ 
 
-    @cached
-    def _intertracs (self):
+    def _get_intertracs (self):
         # FIXME this assumes trac envs are arranged under the same directory
         intertracs = {}
         aliases = {}
@@ -84,6 +87,12 @@ class TicketAutoCompleteTicketFieldPlugin (Component):
             if to in intertracs:
                 intertracs[alias] = intertracs[to]
         return intertracs
+
+    @property
+    def _intertracs (self):
+        if not hasattr(self, "__intertracs"):
+            self.__intertracs = self._get_intertracs()
+        return self.__intertracs
 
     def _resolve_env (self, name):
         from trac.env import open_environment
